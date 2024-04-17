@@ -1,18 +1,15 @@
 package org.vtb.practice;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 public class Account {
     private String ownerName;
-    private HashMap<Currency, Integer> availableAccs;
+    private Map<Currency, Integer> availableAccs;
     private Deque<Cancelable> actions;
 
     private class SaveInstance implements Loadable{
         private final String ownerName;
-        private final HashMap<Currency, Integer> availableAccs;
+        private final Map<Currency, Integer> availableAccs;
         private final Deque<Cancelable> actions;
 
         public SaveInstance() {
@@ -56,8 +53,8 @@ public class Account {
         if (ownerName.isEmpty()) throw new IllegalArgumentException("Owner name must not be empty");
     }
 
-    public HashMap<Currency, Integer> getAvailableAccs() {
-        HashMap<Currency, Integer> ret = new HashMap<>(this.availableAccs);
+    public Map<Currency, Integer> getAvailableAccs() {
+        Map<Currency, Integer> ret = new HashMap<>(this.availableAccs);
         return ret;
     }
 

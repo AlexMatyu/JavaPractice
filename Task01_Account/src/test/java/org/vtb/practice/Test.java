@@ -3,7 +3,7 @@ package org.vtb.practice;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 
-import java.util.HashMap;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 class Test {
@@ -29,7 +29,7 @@ class Test {
     void getAvailableAccs() {
         Account account = new Account("John");
         account.setCurrencyAmount(Currency.RUB, 5);
-        HashMap<Currency, Integer> pairsCurrencyValue = account.getAvailableAccs();
+        Map<Currency, Integer> pairsCurrencyValue = account.getAvailableAccs();
         pairsCurrencyValue.put(Currency.RUB, 20);
 
         Assertions.assertNotEquals(pairsCurrencyValue.get(Currency.RUB), account.getAvailableAccs().get(Currency.RUB));
@@ -66,7 +66,7 @@ class Test {
 
         Loadable savePoint = account.save();
         String tmpOwnerName = account.getOwnerName();
-        HashMap<Currency,Integer> tmpAvailableAccs = account.getAvailableAccs();
+        Map<Currency,Integer> tmpAvailableAccs = account.getAvailableAccs();
 
         account.setOwnerName("Boris");
         account.setCurrencyAmount(Currency.RUB, 2);
