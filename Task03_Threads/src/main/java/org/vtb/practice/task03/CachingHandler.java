@@ -47,7 +47,7 @@ public class CachingHandler implements InvocationHandler {
         }
         @Override
         public void run (){
-            collector = new Thread();
+            collector = new LocalGarbageCollector();
             while (true) {
                 // Если по какой-то причине очистка мусора не успела завершится, дождёмся её
                 if (collector.isAlive()) {
