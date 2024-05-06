@@ -26,7 +26,6 @@ public class CachingHandler implements InvocationHandler {
     }
 
     private class LocalGarbageMonitor extends Thread {
-        Thread collector;
         private boolean needCollectGarbage() {
             Map<CalledMutator, Map<Method, CashedObject>> copiedCashes = new ConcurrentHashMap<>(cashes);
             int expiredCahsCounter = 0;
@@ -47,7 +46,7 @@ public class CachingHandler implements InvocationHandler {
         }
         @Override
         public void run (){
-            collector = new LocalGarbageCollector();
+            Thread collector = new LocalGarbageCollector();
             while (true) {
                 // Если по какой-то причине очистка мусора не успела завершится, дождёмся её
                 if (collector.isAlive()) {
