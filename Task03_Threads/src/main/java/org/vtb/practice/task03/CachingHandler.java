@@ -30,9 +30,9 @@ public class CachingHandler implements InvocationHandler {
         private boolean needCollectGarbage() {
             Map<CalledMutator, Map<Method, CashedObject>> copiedCashes = new ConcurrentHashMap<>(cashes);
             int expiredCahsCounter = 0;
-            // Допустим наши правила очистки кэша:
-            // 1) Либо есть очень старый кэш, который пережил, например, 3 мониторинга
-            // 2) Либо скопилось много мусора, например, 3 бесполезных кэша
+            // Р”РѕРїСѓСЃС‚РёРј РЅР°С€Рё РїСЂР°РІРёР»Р° РѕС‡РёСЃС‚РєРё РєСЌС€Р°:
+            // 1) Р›РёР±Рѕ РµСЃС‚СЊ РѕС‡РµРЅСЊ СЃС‚Р°СЂС‹Р№ РєСЌС€, РєРѕС‚РѕСЂС‹Р№ РїРµСЂРµР¶РёР», РЅР°РїСЂРёРјРµСЂ, 3 РјРѕРЅРёС‚РѕСЂРёРЅРіР°
+            // 2) Р›РёР±Рѕ СЃРєРѕРїРёР»РѕСЃСЊ РјРЅРѕРіРѕ РјСѓСЃРѕСЂР°, РЅР°РїСЂРёРјРµСЂ, 3 Р±РµСЃРїРѕР»РµР·РЅС‹С… РєСЌС€Р°
             for (Map<Method, CashedObject> cash : copiedCashes.values()) {
                 for (Method method : cash.keySet()) {
                     long expiredTime = cash.get(method).expiredTime;
@@ -49,7 +49,7 @@ public class CachingHandler implements InvocationHandler {
         public void run (){
             collector = new Thread();
             while (true) {
-                // Если по какой-то причине очистка мусора не успела завершится, дождёмся её
+                // Р•СЃР»Рё РїРѕ РєР°РєРѕР№-С‚Рѕ РїСЂРёС‡РёРЅРµ РѕС‡РёСЃС‚РєР° РјСѓСЃРѕСЂР° РЅРµ СѓСЃРїРµР»Р° Р·Р°РІРµСЂС€РёС‚СЃСЏ, РґРѕР¶РґС‘РјСЃСЏ РµС‘
                 if (collector.isAlive()) {
                     try {
                         collector.join();
@@ -100,7 +100,7 @@ public class CachingHandler implements InvocationHandler {
 
         if (mutatorAnnotation) lastMutator = new CalledMutator(method, args);
 
-        // Пытаемся вернуть кэш и продлеваем его
+        // РџС‹С‚Р°РµРјСЃСЏ РІРµСЂРЅСѓС‚СЊ РєСЌС€ Рё РїСЂРѕРґР»РµРІР°РµРј РµРіРѕ
         if (cashes.containsKey(lastMutator)
                 && cashes.get(lastMutator).containsKey(method)
                 && cashes.get(lastMutator).get(method).expiredTime > System.currentTimeMillis()
@@ -109,8 +109,8 @@ public class CachingHandler implements InvocationHandler {
             return cashes.get(lastMutator).get(method).cashe;
         }
 
-        // Если мы здесь, значит кэша не нашлось,
-        // поэтому выполним операцию и, при необходимости, закэшируем значение
+        // Р•СЃР»Рё РјС‹ Р·РґРµСЃСЊ, Р·РЅР°С‡РёС‚ РєСЌС€Р° РЅРµ РЅР°С€Р»РѕСЃСЊ (Р»РёР±Рѕ РѕРЅ РїСЂРѕС‚СѓС…С€РёР№),
+        // РїРѕСЌС‚РѕРјСѓ РІС‹РїРѕР»РЅРёРј РѕРїРµСЂР°С†РёСЋ Рё, РїСЂРё РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё, Р·Р°РєСЌС€РёСЂСѓРµРј Р·РЅР°С‡РµРЅРёРµ
         Object res = method.invoke(objectCached, args);
 
         if (cacheAnnotation) {
