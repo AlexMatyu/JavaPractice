@@ -101,7 +101,10 @@ public class CachingHandler implements InvocationHandler {
         if (mutatorAnnotation) lastMutator = new CalledMutator(method, args);
 
         // Пытаемся вернуть кэш и продлеваем его
-        if (cashes.containsKey(lastMutator) && cashes.get(lastMutator).containsKey(method)) {
+        if (cashes.containsKey(lastMutator)
+                && cashes.get(lastMutator).containsKey(method)
+                && cashes.get(lastMutator).get(method).expiredTime > System.currentTimeMillis()
+        ) {
             cashes.get(lastMutator).get(method).expiredTime = System.currentTimeMillis() + lifeTime;
             return cashes.get(lastMutator).get(method).cashe;
         }
