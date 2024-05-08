@@ -9,31 +9,31 @@ import java.util.concurrent.ConcurrentHashMap;
 public class CachingHandler implements InvocationHandler {
     private Object objectCached;
     private CalledMutator lastMutator;
-    private Map<CalledMutator, Map<Method, CashedObject>> cashes = new ConcurrentHashMap<>();
+//    private Map<Method, CachedObject> curStateCaches;
+    private Map<CalledMutator, Map<Method, CachedObject>> caches = new ConcurrentHashMap<>();
     private LocalGarbageMonitor localGarbageMonitor;
     private long periodGarbageMonitor;
 
     private class LocalGarbageCollector extends Thread {
         @Override
         public void run() {
-            for (CalledMutator mutator : cashes.keySet()) {
-                for (Method method : cashes.get(mutator).keySet()) {
-                    if (cashes.get(mutator).get(method).expiredTime < System.currentTimeMillis()) cashes.get(mutator).remove(method);
+            for (CalledMutator mutator : caches.keySet()) {
+                for (Method method : caches.get(mutator).keySet()) {
+                    if (caches.get(mutator).get(method).expiredTime < System.currentTimeMillis()) caches.get(mutator).remove(method);
                 }
-                if (cashes.get(mutator).isEmpty()) cashes.remove(mutator);
+                if (caches.get(mutator).isEmpty()) caches.remove(mutator);
             }
         }
     }
 
     private class LocalGarbageMonitor extends Thread {
-        Thread collector;
         private boolean needCollectGarbage() {
-            Map<CalledMutator, Map<Method, CashedObject>> copiedCashes = new ConcurrentHashMap<>(cashes);
+            Map<CalledMutator, Map<Method, CachedObject>> copiedCaches = new ConcurrentHashMap<>(caches);
             int expiredCahsCounter = 0;
-            // Допустим наши правила очистки кэша:
-            // 1) Либо есть очень старый кэш, который пережил, например, 3 мониторинга
-            // 2) Либо скопилось много мусора, например, 3 бесполезных кэша
-            for (Map<Method, CashedObject> cash : copiedCashes.values()) {
+            // Р”РѕРїСѓСЃС‚РёРј РЅР°С€Рё РїСЂР°РІРёР»Р° РѕС‡РёСЃС‚РєРё РєСЌС€Р°:
+            // 1) Р›РёР±Рѕ РµСЃС‚СЊ РѕС‡РµРЅСЊ СЃС‚Р°СЂС‹Р№ РєСЌС€, РєРѕС‚РѕСЂС‹Р№ РїРµСЂРµР¶РёР», РЅР°РїСЂРёРјРµСЂ, 3 РјРѕРЅРёС‚РѕСЂРёРЅРіР°
+            // 2) Р›РёР±Рѕ СЃРєРѕРїРёР»РѕСЃСЊ РјРЅРѕРіРѕ РјСѓСЃРѕСЂР°, РЅР°РїСЂРёРјРµСЂ, 3 Р±РµСЃРїРѕР»РµР·РЅС‹С… РєСЌС€Р°
+            for (Map<Method, CachedObject> cash : copiedCaches.values()) {
                 for (Method method : cash.keySet()) {
                     long expiredTime = cash.get(method).expiredTime;
 
@@ -47,9 +47,9 @@ public class CachingHandler implements InvocationHandler {
         }
         @Override
         public void run (){
-            collector = new Thread();
+            Thread collector = new LocalGarbageCollector();
             while (true) {
-                // Если по какой-то причине очистка мусора не успела завершится, дождёмся её
+                // Р•СЃР»Рё РїРѕ РєР°РєРѕР№-С‚Рѕ РїСЂРёС‡РёРЅРµ РѕС‡РёСЃС‚РєР° РјСѓСЃРѕСЂР° РЅРµ СѓСЃРїРµР»Р° Р·Р°РІРµСЂС€РёС‚СЃСЏ, РґРѕР¶РґС‘РјСЃСЏ РµС‘
                 if (collector.isAlive()) {
                     try {
                         collector.join();
@@ -57,6 +57,10 @@ public class CachingHandler implements InvocationHandler {
                         throw new RuntimeException(e);
                     }
                 }
+                // РќРµС‚ РєСЌС€РµР№ - РЅРµС‚ РјРѕРЅРёС‚РѕСЂРёРЅРіР°
+                // РјРѕРЅРёС‚РѕСЂРёРЅРі Р·Р°РїСѓСЃС‚РёС‚СЃСЏ РїСЂРё РѕР±СЂР°С‰РµРЅРёРё Рє Р°РЅРЅРѕС‚РёСЂРѕРІР°РЅРЅС‹Рј(Cache) РјРµС‚РѕРґР°Рј РѕР±СЉРµРєС‚Р°.
+                if (caches.isEmpty()) break;
+
                 if (needCollectGarbage()) {
                     collector = new LocalGarbageCollector();
                     collector.start();
@@ -75,16 +79,17 @@ public class CachingHandler implements InvocationHandler {
     public <T> CachingHandler(T objectIncome) {
         this.objectCached = objectIncome;
         this.lastMutator = new CalledMutator();
+//        this.curStateCaches = new ConcurrentHashMap<>();
 
         periodGarbageMonitor = 2000;
         localGarbageMonitor = new LocalGarbageMonitor();
-        localGarbageMonitor.start();
     }
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         boolean cacheAnnotation = false;
         boolean mutatorAnnotation = false;
+        Map<Method, CachedObject> curStateCaches;
         long lifeTime = 0;
 
         Method methodObj = objectCached.getClass().getMethod(method.getName(), method.getParameterTypes());
@@ -100,29 +105,42 @@ public class CachingHandler implements InvocationHandler {
 
         if (mutatorAnnotation) lastMutator = new CalledMutator(method, args);
 
-        // Пытаемся вернуть кэш и продлеваем его
-        if (cashes.containsKey(lastMutator)
-                && cashes.get(lastMutator).containsKey(method)
-                && cashes.get(lastMutator).get(method).expiredTime > System.currentTimeMillis()
-        ) {
-            cashes.get(lastMutator).get(method).expiredTime = System.currentTimeMillis() + lifeTime;
-            return cashes.get(lastMutator).get(method).cashe;
+        if (cacheAnnotation) {
+            // РџС‹С‚Р°РµРјСЃСЏ РІРµСЂРЅСѓС‚СЊ РєСЌС€ Рё РїСЂРѕРґР»РµРІР°РµРј РµРіРѕ
+            curStateCaches = getCurStateCaches(caches, lastMutator);
+            if (curStateCaches != null
+                    && curStateCaches.get(method) != null
+                    && curStateCaches.get(method).expiredTime > System.currentTimeMillis()
+            ) {
+                CachedObject savedCache = curStateCaches.get(method);
+                curStateCaches.get(method).expiredTime = System.currentTimeMillis() + lifeTime;
+                caches.put(lastMutator, curStateCaches);
+                return savedCache.cashe;
+            }
         }
 
-        // Если мы здесь, значит кэша не нашлось,
-        // поэтому выполним операцию и, при необходимости, закэшируем значение
+        // Р•СЃР»Рё РјС‹ Р·РґРµСЃСЊ, Р·РЅР°С‡РёС‚ РєСЌС€Р° РЅРµ РЅР°С€Р»РѕСЃСЊ (Р»РёР±Рѕ РѕРЅ РїСЂРѕС‚СѓС…С€РёР№),
+        // РїРѕСЌС‚РѕРјСѓ РІС‹РїРѕР»РЅРёРј РѕРїРµСЂР°С†РёСЋ Рё, РїСЂРё РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё, Р·Р°РєСЌС€РёСЂСѓРµРј Р·РЅР°С‡РµРЅРёРµ
         Object res = method.invoke(objectCached, args);
 
         if (cacheAnnotation) {
-            CashedObject cashedObject = new CashedObject(res, System.currentTimeMillis() + lifeTime);
+            CachedObject cachedObject = new CachedObject(res, System.currentTimeMillis() + lifeTime);
 
-            if (!cashes.containsKey(lastMutator)) {
-                Map<Method, CashedObject> curCashe = new ConcurrentHashMap<>();
-                curCashe.put(method, cashedObject);
-                cashes.put(lastMutator, curCashe);
-            } else cashes.get(lastMutator).put(method, cashedObject);
+            curStateCaches = getCurStateCaches(caches, lastMutator);
+            curStateCaches.put(method, cachedObject);
+            caches.put(lastMutator, curStateCaches);
+
+            if (!localGarbageMonitor.isAlive()) {
+                localGarbageMonitor = new LocalGarbageMonitor();
+                localGarbageMonitor.start();
+            }
         }
 
         return res;
+    }
+
+    public Map<Method, CachedObject> getCurStateCaches(Map<CalledMutator, Map<Method, CachedObject>> caches, CalledMutator lastMutator) {
+        Map<Method, CachedObject> cachedObjectMap = caches.get(lastMutator);
+        return cachedObjectMap == null ? new ConcurrentHashMap<>() : new ConcurrentHashMap<>(cachedObjectMap);
     }
 }

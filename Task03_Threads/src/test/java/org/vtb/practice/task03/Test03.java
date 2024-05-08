@@ -8,7 +8,7 @@ public class Test03 {
     // В классе FractionTst на кэшируемый метод выставлено время жизни 2000 для упрощения тестирования
     @Test
     @DisplayName("Check Cache")
-    void checkCache (){
+    void checkCache() {
         FractionTst fractionExt = new FractionTst(1, 4);
         FractionableTst fractionable = Utils.cache(fractionExt);
         double res1 = fractionable.doubleValue();
@@ -20,7 +20,7 @@ public class Test03 {
 
     @Test
     @DisplayName("Check Mutator")
-    void checkMutator (){
+    void checkMutator() {
         FractionTst fractionExt = new FractionTst(1, 4);
         FractionableTst fractionable = Utils.cache(fractionExt);
         double res1 = fractionable.doubleValue();
@@ -37,19 +37,20 @@ public class Test03 {
     }
 
     @Test
-    @DisplayName("Check not cashed method")
-    void checkNotCashedMethod (){
+    @DisplayName("Check not cached method")
+    void checkNotCachedMethod() {
         FractionTst fractionExt = new FractionTst(1, 4);
         FractionableTst fractionable = Utils.cache(fractionExt);
-        double res1 = fractionable.doubleValueNotCashed();
-        double res2 = fractionable.doubleValueNotCashed();
+        double res1 = fractionable.doubleValueNotCached();
+        double res2 = fractionable.doubleValueNotCached();
 
         Assertions.assertEquals(res1, res2);
         Assertions.assertEquals(fractionExt.methodCallCount, 2);
     }
+
     @Test
     @DisplayName("Check lifeTime")
-    void checklifeTime (){
+    void checklifeTime() {
         FractionTst fractionExt = new FractionTst(1, 4);
         FractionableTst fractionable = Utils.cache(fractionExt);
         double res1 = fractionable.doubleValue();
@@ -63,9 +64,10 @@ public class Test03 {
         Assertions.assertEquals(res1, res2);
         Assertions.assertEquals(fractionExt.methodCallCount, 2);
     }
+
     @Test
     @DisplayName("Check lifeTime extension")
-    void checklifeTimeExt (){
+    void checklifeTimeExt() {
         FractionTst fractionExt = new FractionTst(1, 4);
         FractionableTst fractionable = Utils.cache(fractionExt);
         double res1 = fractionable.doubleValue();

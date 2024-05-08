@@ -27,7 +27,7 @@ public class FractionTst implements FractionableTst {
         return (double) num/denum;
     }
 
-    public double doubleValueNotCashed() {
+    public double doubleValueNotCached() {
         methodCallCount++;
         return (double) num/denum;
     }
