@@ -1,0 +1,33 @@
+version: '3.8'
+services:
+  client-backend:
+    container_name: client-backend
+    image: client:0.0.4
+    build:
+#      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8181:8181"
+    depends_on:
+      - service-db
+    environment:
+      - SERVER_PORT= 8181
+#      - SPRING_DATASOURCE_URL=jdbc:postgresql://192.168.255.205:15432/postgres
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://service-db/postgres
+
+  service-db:
+    container_name: service-db
+    image: postgres:14.7-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: qwerty
+    ports:
+      - "15432:5432"
+    volumes:
+#      - ./infrastructure/db/create_db.sql:/docker-entrypoint-initdb.d/create_db.sql
+      - ./:/docker-entrypoint-initdb.d
+      - db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  db-data:
