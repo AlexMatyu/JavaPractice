@@ -17,6 +17,7 @@ import java.util.function.UnaryOperator;
 @Order(2)
 public class ProdDoublesInstUpd implements UnaryOperator<CorpSettlInstanceBody> {
     @Autowired
+    protected
     Tpp_product_Repo productRepo;
 
     @Override

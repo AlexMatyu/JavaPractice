@@ -14,12 +14,21 @@ import org.vtb.practice.task05.controllers.model.processor.acc.NecessaryFieldsAc
 import org.vtb.practice.task05.controllers.model.processor.acc.ProdRegDoublesAcc;
 import org.vtb.practice.task05.controllers.model.processor.acc.ProdRegTypeFindAcc;
 import org.vtb.practice.task05.controllers.model.processor.instnew.NecessaryFieldsInstNew;
+import org.vtb.practice.task05.controllers.model.processor.instnew.ProdRegTypeFindInstNew;
+import org.vtb.practice.task05.controllers.model.processor.instupd.NecessaryFieldsInstUpd;
 import org.vtb.practice.task05.data.entity.Tpp_ref_product_register_type;
+import org.vtb.practice.task05.data.repo.Agreement_Repo;
+import org.vtb.practice.task05.data.repo.Tpp_product_Repo;
 import org.vtb.practice.task05.data.repo.Tpp_product_register_Repo;
 import org.vtb.practice.task05.data.repo.Tpp_ref_product_register_type_Repo;
+import org.vtb.practice.task05.exts.AgreementDoublesTest;
+import org.vtb.practice.task05.exts.PacketInjection;
+import org.vtb.practice.task05.exts.ProdDoublesInstNewTest;
+import org.vtb.practice.task05.exts.ProdDoublesInstUpdTest;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -34,7 +43,6 @@ public class ApplicationTest {
         accountBody.setInstanceId(1);
         accountBody.setRegistryTypeCode("03.012.002_47533_ComSoLd");
 
-        instanceNewBody.setInstanceId(1);
         instanceNewBody.setProductType("typeProduct");
         instanceNewBody.setProductCode("03.012.002");
         instanceNewBody.setRegisterType("registrType");
@@ -133,14 +141,13 @@ public class ApplicationTest {
 
         accountBody.setRegistryTypeCode("xxx_03.012.002_47533_ComSoLd_xxx");
 
-        Executable executable = () -> regTypeFindAcc.apply(accountBody);
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, executable);
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> regTypeFindAcc.apply(accountBody));
         Assertions.assertEquals(HttpStatus.NOT_FOUND.value(), exception.getBody().getStatus());
     }
 
     @Test
     @DisplayName("Instance New 1. Checking necessary fields")
-    void testInstNewnecFields(@Autowired NecessaryFieldsInstNew necessaryFieldsInstNew) {
+    void testInstNewNecFields(@Autowired NecessaryFieldsInstNew necessaryFieldsInstNew) {
         instanceNewBody.setProductCode(null);
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> necessaryFieldsInstNew.apply(instanceNewBody));
@@ -148,5 +155,89 @@ public class ApplicationTest {
 
         instanceNewBody.setProductCode("03.012.002");
         Assertions.assertDoesNotThrow(() -> necessaryFieldsInstNew.apply(instanceNewBody));
+    }
+
+    @Test
+    @DisplayName("Instance New 2. Product doubles")
+    void testInstNewProdDoubles() {
+        Tpp_product_Repo productRepo = mock(Tpp_product_Repo.class);
+
+        when(productRepo.findByParam("dogNum123")).thenReturn(Collections.singletonList("product_id"));
+        when(productRepo.findByParam("NonExistContract")).thenReturn(Collections.emptyList());
+
+        ProdDoublesInstNewTest prodDoublesInstNewTest = new ProdDoublesInstNewTest(productRepo);
+
+        Executable executable = () -> prodDoublesInstNewTest.apply(instanceNewBody);
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, executable);
+        Assertions.assertEquals(HttpStatus.BAD_REQUEST.value(), exception.getBody().getStatus());
+
+        instanceNewBody.setContractNumber("NonExistContract");
+
+        Assertions.assertDoesNotThrow(() -> prodDoublesInstNewTest.apply(instanceNewBody));
+    }
+
+    @Test
+    @DisplayName("Instance New 3. Agreement doubles")
+    void testInstNewAgreementDoubles() {
+        Agreement_Repo agreementRepo = mock(Agreement_Repo.class);
+
+        when(agreementRepo.findByParam("num456")).thenReturn(Collections.singletonList("product_id"));
+        when(agreementRepo.findByParam("NonExistContract")).thenReturn(Collections.emptyList());
+
+        AgreementDoublesTest agreementDoublesInstNewTest = new AgreementDoublesTest(agreementRepo);
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> agreementDoublesInstNewTest.apply(instanceNewBody));
+        Assertions.assertEquals(HttpStatus.BAD_REQUEST.value(), exception.getBody().getStatus());
+
+        instanceNewBody.getInstanceArrangement().get(0).setNumber("NonExistContract");
+
+        Assertions.assertDoesNotThrow(() -> agreementDoublesInstNewTest.apply(instanceNewBody));
+    }
+
+    @Test
+    @DisplayName("Instance New 4. Existing records of Register type")
+    void testInstNewExistRegisterType(@Autowired ProdRegTypeFindInstNew prodRegTypeFindInstNew) {
+        Tpp_ref_product_register_type_Repo registerTypeRepo = mock(Tpp_ref_product_register_type_Repo.class);
+
+        when(registerTypeRepo.findByParam("03.012.002", "Клиентский")).thenReturn(Collections.singletonList("product_id"));
+        when(registerTypeRepo.findByParam("NonExistProductCode", "Клиентский")).thenReturn(Collections.emptyList());
+
+
+        Assertions.assertDoesNotThrow(() -> prodRegTypeFindInstNew.apply(instanceNewBody));
+
+        instanceNewBody.setProductCode("NonExistProductCode");
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> prodRegTypeFindInstNew.apply(instanceNewBody));
+        Assertions.assertEquals(HttpStatus.NOT_FOUND.value(), exception.getBody().getStatus());
+    }
+
+    @Test
+    @DisplayName("Instance Upd 1. Checking necessary fields")
+    void testInstUpdNecFields(@Autowired NecessaryFieldsInstUpd necessaryFieldsInstUpd) {
+        instanceUpdBody.setProductCode(null);
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> necessaryFieldsInstUpd.apply(instanceUpdBody));
+        Assertions.assertEquals(HttpStatus.BAD_REQUEST.value(), exception.getBody().getStatus());
+
+        instanceUpdBody.setProductCode("03.012.002");
+        Assertions.assertDoesNotThrow(() -> necessaryFieldsInstUpd.apply(instanceUpdBody));
+    }
+
+    @Test
+    @DisplayName("Instance Upd 2. Product doubles")
+    void testInstUpdProdDoubles() {
+        Tpp_product_Repo productRepo = mock(Tpp_product_Repo.class);
+
+        when(productRepo.findByIdent(1)).thenReturn(Collections.singletonList("product_id"));
+        when(productRepo.findByIdent(123)).thenReturn(Collections.emptyList());
+
+        ProdDoublesInstUpdTest prodDoublesInstUpdTest = new ProdDoublesInstUpdTest(productRepo);
+
+        Assertions.assertDoesNotThrow(() -> prodDoublesInstUpdTest.apply(instanceUpdBody));
+
+        instanceUpdBody.setInstanceId(123);
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> prodDoublesInstUpdTest.apply(instanceUpdBody));
+        Assertions.assertEquals(HttpStatus.NOT_FOUND.value(), exception.getBody().getStatus());
     }
 }

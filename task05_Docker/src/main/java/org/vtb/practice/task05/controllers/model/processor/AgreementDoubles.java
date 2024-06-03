@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 @Component("agrdoub")
 public class AgreementDoubles implements UnaryOperator<CorpSettlInstanceBody> {
     @Autowired
+    protected
     Agreement_Repo agreementRepo;
 
     @Override
